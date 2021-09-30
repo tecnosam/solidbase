@@ -5,6 +5,8 @@ from .controller_types import *
 
 import os
 
+import json
+
 SIZE_METRIC = [ 'BB', 'KB', 'MB', 'GB', 'TB' ]
 
 def translate_capacity(capacity:str):
@@ -14,7 +16,6 @@ def translate_capacity(capacity:str):
 
 class Drive( array ):
 
-    # TODO: do some work on this
     """
         This Structure allows users to:
             1) Instantiate new drives
@@ -69,6 +70,8 @@ class Controller:
         self.size = translate_capacity( capacity )
 
         self.drive = Drive( fn, self.size )
+
+        self.fn = fn
 
         self._base = [ ControllerBlock( "drive", FOLDER_CONTROLLER, None ) ]
 
@@ -143,8 +146,17 @@ class Controller:
         return free
 
     def dump( self ):
-        # TODO: dumps controller information to external file
-        pass
+        blocks = []
+
+        for block in self:
+            blocks.append( block.to_dict() )
+        
+        with open( self.fn, "w" ) as f:
+
+            json.dump( blocks, f )
+        
+        return
+
 
     # TESTED & WORKING
     def __getitem__( self, i ):
