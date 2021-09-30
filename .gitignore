@@ -1,0 +1,3 @@
+*.sbdrive
+__pycache__
+env
