@@ -3,6 +3,8 @@ from .controller_block import ControllerBlock
 
 from .controller_types import *
 
+from .drive import Drive
+
 import os
 
 import json
@@ -13,80 +15,34 @@ def translate_capacity(capacity:str):
     # converts from supported storage capacity to capacity in bytes
     return int(float(capacity[:-2]) * ( 1024 ** (SIZE_METRIC.index( capacity[-2:] )) ))
 
-
-class Drive( array ):
-
-    """
-        This Structure allows users to:
-            1) Instantiate new drives
-            2) Store bytes in drives in storage
-            3) Determine the size of drive
-            4) Write changes to drive in storage
-    """
-
-    def __init__( self, fn:str, size:int ):
-        # TODO: think of how to solve the array of large bytes issue
-        self.fn = ".".join((fn, "sbdrive"))
-
-        super(  ).__init__( size, bytes )
-
-        self.clear( b'\x00' )
-
-        with open( self.fn, "wb" ) as f:
-            for byte in self:
-                f.write( byte )
-
-        f.close()
-
-    def insert( self, c_block:ControllerBlock ):
-        # writes files in file with fn c_block.name to virtual drive on disk
-        with open( self.fn, "rb+" ) as o_stream:
-
-            print( c_block.start )
-
-            with open( c_block.name, "rb" ) as i_stream:
-
-                for _ in range( c_block.start, c_block.end + 1 ):
-
-
-                    byte = i_stream.read(1)
-
-                    self[ _ ] = byte
-
-                    o_stream.seek( _, 0 )
-                    o_stream.write( byte )
-                    o_stream.seek(0)
-
-        i_stream.close()
-        o_stream.close()
-
-        return 
-
-
 class Controller:
 
-    def __init__( self, fn:str, capacity: str ):
+    def __init__( self, name:str, capacity: str ):
 
         self.size = translate_capacity( capacity )
 
-        self.drive = Drive( fn, self.size )
+        self.drive = Drive( name, self.size )
 
-        self.fn = fn
+        self.name = name
 
         self._base = [ ControllerBlock( "drive", FOLDER_CONTROLLER, None ) ]
 
     # TESTED & WORKING
-    def push_control( self, c_block:ControllerBlock ):
+    def push_control( self, c_block:ControllerBlock, i_fn:str = None ):
 
         # the function automatically corrects span
+
         print()
-        c_block.span = os.path.getsize( c_block.name )
+
+        i_fn = i_fn if i_fn is not None else input( "Name of file: " )
+
+        c_block.span = os.path.getsize( i_fn )
 
         self._base.append( c_block )
 
         if c_block.c_type == FILE_CONTROLLER:
 
-            self.drive.insert( c_block )
+            self.drive.insert( i_fn, c_block )
 
         return
     
@@ -151,9 +107,13 @@ class Controller:
         for block in self:
             blocks.append( block.to_dict() )
         
-        with open( self.fn, "w" ) as f:
+        with open( f"{self.name}.controller.json", "w" ) as f:
 
-            json.dump( blocks, f )
+            json.dump( {
+                "name": self.name,
+                "capacity": f"{self.size}BB",
+                "blocks": blocks
+            }, f )
         
         return
 
@@ -167,3 +127,6 @@ class Controller:
     # TESTED & WORKING
     def __len__( self ):
         return len( self._base )
+
+    def __iter__ ( self ):
+        return self._base.__iter__()

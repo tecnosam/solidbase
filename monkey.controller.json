@@ -1,0 +1,23 @@
+{
+    "name": "monkey",
+    "capacity": "6291456BB",
+    "blocks": [{
+        "name": "drive",
+        "c_type": 2,
+        "parent": null,
+        "start": 0,
+        "end": 0
+    }, {
+        "name": "numbers.txt",
+        "c_type": 1,
+        "parent": 0,
+        "start": 0,
+        "end": 2
+    }, {
+        "name": "test2.txt",
+        "c_type": 1,
+        "parent": 0,
+        "start": 3,
+        "end": 5
+    }]
+}
