@@ -1,13 +1,7 @@
 from structures.controller import *
 
-tester = Controller( "monkey", '6MB' )
+tester = Controller.load_file( "monkey-solidbase/monkey.controller.json" )
 
-block = ControllerBlock( "numbers.txt", FILE_CONTROLLER, 0, 0, 2 )
+# tester = Controller( "monkey", '6BB' )
 
-tester.push_control( block, "test.txt" )
-
-block_2 = tester.free_space()[0]
-
-block_2.name = "test2.txt"
-
-tester.push_control( block_2, "test2.txt" )
+# block = ControllerBlock( "numbers123", FILE_CONTROLLER, parent = 0, start = 0,end = 2 )
