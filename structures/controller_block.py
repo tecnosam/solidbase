@@ -4,14 +4,14 @@ from .utils.array import array, Iterator
 
 class ControllerBlock:
 
-    def __init__( self, name, c_type, parent = 0, start = 0, end = 0, metadata:dict = dict() ):
+    def __init__( self, name, c_type, parent = 0, start = 0, end = 0, mime:str = "application/octet-stream" ):
 
         self._name = name
         self.c_type = c_type
         self.parent = parent
         self.start = start
         self.end = end
-        self.metadata = metadata
+        self.mime = mime
 
         self.is_root = parent is None
 
@@ -25,8 +25,8 @@ class ControllerBlock:
             "c_type": self.c_type,
             "parent": self.parent,
             "start": self.start,
-            "end": self.end,
-            "metadata": self.metadata
+            "mime": self.mime,
+            "end": self.end
         }
 
     def rename ( self, new_name ):
@@ -47,5 +47,3 @@ class ControllerBlock:
 
     name = property( get_name, rename )
     span = property( __len__, refix_span )
-
-# TODO: work on metadata feature

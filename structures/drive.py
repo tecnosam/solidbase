@@ -1,7 +1,11 @@
-import io
 from .controller import ControllerBlock
 
 from .controller_types import CAPACITY_HEADER_SIZE
+
+from .utils.buffers import FileInputBuffer, FileOutputBuffer
+
+import os
+
 
 class Drive:
 
@@ -13,11 +17,13 @@ class Drive:
             4) Write changes to drive in storage
     """
 
-    def __init__( self, fn:str, size:int, clear:bool = True ):
+    def __init__( self, drive_dir:str, size:int, clear:bool = True ):
 
-        self.fn = fn
+        self.fn = os.path.join( drive_dir, "sbdrive" )
 
         self._size = size
+
+        self._header_size = 0
 
         if clear:
             self.clear( b'\x00' )
@@ -26,28 +32,30 @@ class Drive:
 
         with open( self.fn, "wb" ) as f:
 
-            f.write( self._size.to_bytes( CAPACITY_HEADER_SIZE, "big" ) )
-            print(self._size.to_bytes( CAPACITY_HEADER_SIZE, "big" ))
+            # f.write( self._size.to_bytes( CAPACITY_HEADER_SIZE, "big" ) )
 
             for i in range( self.size ):
                 f.write( byte )
 
         f.close()
 
-    def insert( self, c_block:ControllerBlock, i_stream ):
+    def insert( self, c_block:ControllerBlock, i_stream:FileInputBuffer ):
         # writes files in file with fn c_block.name to virtual drive on disk
         with open( self.fn, "rb+" ) as o_stream:
+            _ = c_block.start + self.header_size
 
-            print( c_block.start, CAPACITY_HEADER_SIZE, c_block.end )
+            # for _ in range( c_block.start + self.header_size, c_block.end + self.header_size + 1 ):
+            try:
+                while byte := i_stream.read():
+                    # byte = i_stream.read()
 
-            for _ in range( c_block.start + CAPACITY_HEADER_SIZE, c_block.end + CAPACITY_HEADER_SIZE + 1 ):
+                    o_stream.seek( _, 0 )
+                    o_stream.write( byte )
+                    o_stream.seek(0)
 
-                byte = i_stream.read(1)
-                print(byte, 'x')
-
-                o_stream.seek( _, 0 )
-                o_stream.write( byte )
-                o_stream.seek(0)
+                    _ += len( byte )
+            except StopIteration:
+                pass
 
         o_stream.close()
 
@@ -56,64 +64,23 @@ class Drive:
     def __getitem__(self, c_block: ControllerBlock):
 
         stream = open( self.fn, "rb" )
-        stream.seek( c_block.start + CAPACITY_HEADER_SIZE, 0 )
+        stream.seek( c_block.start + self.header_size, 0 )
 
         return FileOutputBuffer(stream, c_block)
 
+    # properties
     def set_size( self, new_size ):
         self._size = new_size
         # change file header in file
-    
+
     def get_size( self ) -> int:
         return self._size
 
+    def set_header_size( self, val:int ):
+        self._header_size = val
+
+    def get_header_size( self ) -> int:
+        return self._header_size
+
     size = property( get_size, set_size )
-
-
-class FileOutputBuffer:
-
-    def __init__(self, stream: io.BufferedReader, c_block:ControllerBlock, b_size:int = 1) -> None:
-
-        self._stream = stream
-
-        self._c_block = c_block
-
-        self._cur = 0
-
-        self._b_size = b_size
-
-    def reset( self ):
-        self._cur = 0
-        self._stream.seek( self._c_block.start + CAPACITY_HEADER_SIZE, 0 )
-
-    def __next__( self ):
-        if ( self._cur >= self._c_block.span ):
-            raise StopIteration
-
-        self._cur += self.b_size
-
-        if self._cur > self._c_block.span:
-            byte = self._stream.read( self._cur - self._c_block.span )
-        else:
-            byte = self._stream.read( self.b_size )
-
-        return byte
-
-    def __iter__( self ):
-
-        # reset the stream to point to beginning of file
-
-        self.reset()
-
-        return self
-    
-    def set_buffer_size( self, n:int ):
-        self.reset()
-        self._b_size = n
-
-    def get_buffer_size( self ) -> int:
-        return self._b_size
-
-    b_size = property( get_buffer_size, set_buffer_size )
-
-# TODO: work on FileInputBuffer
+    header_size = property( get_header_size, set_header_size )

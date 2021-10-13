@@ -1,3 +1,5 @@
 *.sbdrive
 __pycache__
 env
+*-solidbase
+test-files

@@ -1,7 +1,10 @@
+from structures.utils.buffers import FileInputBuffer
 from .controller_block import ControllerBlock
 from .controller_types import *
 from .drive import Drive
 import os, json
+
+from magic import Magic
 
 SIZE_METRIC = [ 'BB', 'KB', 'MB', 'GB', 'TB' ]
 
@@ -11,14 +14,20 @@ def translate_capacity(capacity:str):
 
 class Controller:
 
-    def __init__( self, name:str, capacity: str, drive_fn:str = None, clear:bool = True ):
+    def __init__( self, name:str, capacity: str, drive_dir = None, afresh = True, clear:bool = True ):
 
         self.size = translate_capacity( capacity )
 
-        drive_fn = drive_fn if drive_fn is not None else ".".join((name, "sbdrive"))
-        print( drive_fn )
 
-        self.drive = Drive( drive_fn, self.size, clear = clear )
+        self.drive_dir = drive_dir if drive_dir is not None else os.path.join( BASE_DIRECTORY, f"{name}-solidbase" )
+
+        if afresh:
+            try:
+                os.mkdir( self.drive_dir )
+            except FileExistsError:
+                raise Exception( "This drive has already been created" )
+
+        self.drive = Drive( self.drive_dir, self.size, clear = clear )
 
         self.name = name
 
@@ -27,24 +36,34 @@ class Controller:
     # TESTED & WORKING
     def push_control( self, c_block:ControllerBlock, i_fn:str = None ):
 
-        # the function automatically corrects span
-
         print()
 
-        i_fn = i_fn if i_fn is not None else input( "Name of file: " )
+        i_fn = i_fn if i_fn is not None else input( "Name or URL of file: " )
 
-        c_block.span = os.path.getsize( i_fn )
+        if c_block.c_type == FILE_CONTROLLER:
+
+            i_buffer = FileInputBuffer( i_fn ) # our input buffer to handle all sort of files
+
+            # the function automatically corrects span
+            c_block.span = i_buffer.full_size
+
+            c_block.mime = i_buffer.mime
+
+            # check if its too large
+            if (
+                sum(
+                    [ block.span for block in self if block.c_type == FILE_CONTROLLER ],
+                    c_block.span
+                ) > self.drive.size
+            ):
+                raise Exception("File too large")
+
+            self.drive.insert( c_block, i_buffer ) # insert file in drive
 
         print( "Correct size is now ", c_block.span, "ending at ", c_block.end )
 
         self._base.append( c_block )
 
-        if c_block.c_type == FILE_CONTROLLER:
-
-            self.drive.insert( c_block, open( i_fn, "rb" ) )
-
-        return
-    
     def get_folders( self ):
         # This functions iteratively fetches all folders and sorts them out
         folders = dict()
@@ -106,15 +125,15 @@ class Controller:
         for block in self:
             blocks.append( block.to_dict() )
 
-        with open( f"{self.name}.controller.json", "w" ) as f:
+        with open( os.path.join(f"{self.drive_dir}", ".controller.json"), "w" ) as f:
 
             json.dump( {
                 "name": self.name,
                 "capacity": f"{self.size}BB",
-                "drive_fn": self.drive.fn,
+                "drive_dir": self.drive_dir,
                 "blocks": blocks
             }, f )
-        
+
         return
 
     # TESTED & WORKING
@@ -132,17 +151,17 @@ class Controller:
     
     @staticmethod
     def load_file( fn ):
+
         with open ( fn, "r" ) as f:
             data = json.load( f )
         f.close()
-        _controller = Controller( data['name'], data['capacity'], data['drive_fn'], clear = False )
+
+        _controller = Controller( data['name'], data['capacity'], drive_dir = data['drive_dir'], afresh = False, clear = False )
 
         _controller._base = [] # reset base cus the root c_block is also dumped
 
         for block in data['blocks']:
             # we use append becuase insert will start the writing process all over
             _controller._base.append( ControllerBlock( **block ) )
-        
-        return _controller
 
-# TODO: try putting the controller.json file in the header of the drive on dump
+        return _controller
