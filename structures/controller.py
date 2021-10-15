@@ -114,10 +114,16 @@ class Controller:
     def get_folders( self, deleted = False ):
         # This functions iteratively fetches all folders and sorts them out
         # This works and i dont know why
+
+        # the deleted parameter determines whether the deleted controllers will also be listed
+
         full = collections.defaultdict( dict )
+
         for block in self._base:
-            if block.deleted != deleted:
+
+            if block.deleted and not deleted:
                 continue
+
             ident = self.find( block.id )
             assert ident != -1
             parent = block.parent
