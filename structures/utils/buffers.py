@@ -2,7 +2,7 @@ import io, requests, os
 
 from ..controller_block import ControllerBlock
 
-from ..controller_types import *
+from ..configs import *
 
 import validators
 
@@ -87,7 +87,7 @@ class FileInputBuffer:
 
             self._stream = open( i_fn, "rb" )
 
-            self.mime = Magic( mime = True ).from_file( i_fn )
+            self.mime = Magic( mime = True, uncompress = True ).from_file( i_fn )
 
             self.b_type = 'file'
 

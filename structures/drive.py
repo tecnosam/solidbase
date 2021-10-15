@@ -1,6 +1,6 @@
 from .controller import ControllerBlock
 
-from .controller_types import CAPACITY_HEADER_SIZE
+from .configs import CAPACITY_HEADER_SIZE
 
 from .utils.buffers import FileInputBuffer, FileOutputBuffer
 
@@ -17,9 +17,11 @@ class Drive:
             4) Write changes to drive in storage
     """
 
-    def __init__( self, drive_dir:str, size:int, clear:bool = True ):
+    def __init__( self, drive_dir:str, size:int, clear:bool = True, fn:str = "sbdrive" ):
 
-        self.fn = os.path.join( drive_dir, "sbdrive" )
+        self.fn = os.path.join( drive_dir, fn )
+
+        self.drive_dir = drive_dir
 
         self._size = size
 
@@ -69,9 +71,21 @@ class Drive:
         return FileOutputBuffer(stream, c_block)
 
     # properties
-    def set_size( self, new_size ):
-        self._size = new_size
-        # change file header in file
+    def set_size( self, new_size:int ):
+
+        with open( self.fn, "rb+" ) as f:
+            if new_size > self._size:
+                f.seek( self._size, 0 )
+
+                f.write( bytes( new_size-self._size ) )
+
+            else:
+                f.seek( new_size )
+                f.truncate()
+
+            self._size = new_size
+
+        return
 
     def get_size( self ) -> int:
         return self._size
