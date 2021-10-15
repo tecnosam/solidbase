@@ -33,6 +33,8 @@ class Controller:
 
     # TESTED & WORKING
     def push_control( self, c_block:ControllerBlock, i_fn:str = None ):
+        if self.find( c_block.parent ) == -1:
+            raise Exception( "Cannot find parent" )
 
         if c_block.c_type == FILE_CONTROLLER:
 
@@ -85,18 +87,37 @@ class Controller:
         i = self.find(id)
         if i == -1:
             raise IndexError( "Cannot find ControllerBlock with id %s" % id )
+
+        # delete all children recursively
+        if self[i].c_type == FOLDER_CONTROLLER:
+            for block in self:
+                if block.parent == id:
+                    self.delete_control( block.id )
+
         self[ i ].deleted = True
+
+        self.dump()
 
     def restore_control( self, id ):
         # raise NotImplementedError("Coming soon as soon as I figure out the journaling stuff")
         i = self.find( id )
         self[ i ].deleted = False
 
-    def get_folders( self ):
+        # restore all children recursively
+        if self[i].c_type == FOLDER_CONTROLLER:
+            for block in self:
+                if block.parent == id:
+                    self.restore_control( block.id )
+
+        self.dump()
+
+    def get_folders( self, deleted = False ):
         # This functions iteratively fetches all folders and sorts them out
         # This works and i dont know why
         full = collections.defaultdict( dict )
         for block in self._base:
+            if block.deleted != deleted:
+                continue
             ident = self.find( block.id )
             assert ident != -1
             parent = block.parent
@@ -116,7 +137,7 @@ class Controller:
 
         free = [  ]
 
-        occupied = [(self[i].start,self[i].end) for i in range(len(self)) if self[i].c_type==FILE_CONTROLLER]
+        occupied = [(self[i].start,self[i].end) for i in range(len(self)) if self[i].c_type==FILE_CONTROLLER and not self[i].deleted]
 
         if not occupied:
             return [ControllerBlock( None, FILE_CONTROLLER, 0, 0, self.drive.size - 1 )]

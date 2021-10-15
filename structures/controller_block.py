@@ -56,7 +56,7 @@ class ControllerBlock:
         return (self.end - self.start) + 1
 
     def __repr__(self) -> str:
-        return f"<Block: \"{self.name}\", Type: {self.c_type}, SPAN: {self.span}>"
+        return f"<Block: {self.id}, Type: {self.c_type}, SPAN: {self.span}>"
 
     name = property( get_name, rename )
     span = property( __len__, refix_span )
