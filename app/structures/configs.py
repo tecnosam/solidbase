@@ -4,4 +4,4 @@ FOLDER_CONTROLLER = 2
 
 CAPACITY_HEADER_SIZE = 16
 
-BASE_DIRECTORY = '/home/tecnosam/kode/solid_base'
+BASE_DIRECTORY = '/home/tecnosam/kode/solid_base/drives'

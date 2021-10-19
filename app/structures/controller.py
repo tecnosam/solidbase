@@ -1,5 +1,5 @@
 from .utils.buffers import FileInputBuffer
-from .utils.extras import translate_capacity
+from .utils.extras import interference, translate_capacity
 from .controller_block import ControllerBlock
 from .configs import *
 from .drive import Drive
@@ -21,7 +21,7 @@ class Controller:
             try:
                 os.mkdir( self.drive_dir )
             except FileExistsError:
-                raise Exception( "This drive has already been created" )
+                raise FileExistsError( "This drive has already been created" )
 
             self._base = [ ControllerBlock( "drive", FOLDER_CONTROLLER, None ) ]
             self._base[0].id = 0
@@ -32,6 +32,7 @@ class Controller:
         self.drive = Drive( self.drive_dir, self.size, clear = clear ) # instantiate drive
 
     # TESTED & WORKING
+    # CRUD post control
     def push_control( self, c_block:ControllerBlock, i_fn:str = None ):
         if self.find( c_block.parent ) == -1:
             raise Exception( "Cannot find parent" )
@@ -42,19 +43,18 @@ class Controller:
 
             i_buffer = FileInputBuffer( i_fn ) # our input buffer to handle all sort of files
 
-            # the function automatically corrects span
-            c_block.span = i_buffer.full_size
+            try:
+                block : ControllerBlock = next(self._free_space( i_buffer.full_size ))
 
-            c_block.mime = i_buffer.mime
+                # the function automatically corrects span
+                block.name = c_block.name
+                block.parent = c_block.parent
 
-            # check if its too large
-            if (
-                sum(
-                    [ block.span for block in self if block.c_type == FILE_CONTROLLER ],
-                    c_block.span
-                ) > self.drive.size
-            ):
-                raise Exception("File too large")
+                block.mime = i_buffer.mime
+
+                c_block = block
+            except StopIteration:
+                raise Exception( "No space to place your data. You can try upgrading storage" )
 
             self.drive.insert( c_block, i_buffer ) # insert file in drive
 
@@ -68,18 +68,26 @@ class Controller:
 
         return c_block.id
 
-
+    # CRUD PUT control
     def rename_control( self, id:int, name:str ):
         i = self.find(id)
         if i == -1:
             raise IndexError( "Cannot find ControllerBlock with id %s" % id )
         self[ i ].name = name
 
+    # CRUD delete control
     def pop_control( self, id) -> ControllerBlock:
         i = self.find(id)
         if i == -1:
             raise IndexError( "Cannot find ControllerBlock with id %s" % id )
         c_block = self._base.pop( i )
+
+        # delete all children recursively
+        if c_block.c_type == FOLDER_CONTROLLER:
+
+            for block in self:
+                if block.parent == c_block.id:
+                    self.pop_control( block.id )
 
         return c_block
 
@@ -111,6 +119,7 @@ class Controller:
 
         self.dump()
 
+    # CRUD get control /:solidbase
     def get_folders( self, deleted = False ):
         # This functions iteratively fetches all folders and sorts them out
         # This works and i dont know why
@@ -139,14 +148,15 @@ class Controller:
         return root
 
     # TESTED & WORKING ( DO NOT TOUCH )
-    def free_space( self, req_size:int = 1 ):
+    def _free_space( self, req_size:int = 1 ) -> ControllerBlock:
 
-        free = [  ]
+        # free = [  ]
 
         occupied = [(self[i].start,self[i].end) for i in range(len(self)) if self[i].c_type==FILE_CONTROLLER and not self[i].deleted]
 
         if not occupied:
-            return [ControllerBlock( None, FILE_CONTROLLER, 0, 0, self.drive.size - 1 )]
+            yield ControllerBlock( None, FILE_CONTROLLER, 0, 0, self.drive.size - 1 )
+            # return []
 
         occupied.sort( key = lambda x: x[0] )
 
@@ -168,29 +178,33 @@ class Controller:
             c_block = ControllerBlock( None, c_type, 0, start, end )
 
             if len( c_block ) >= req_size:
+                c_block.span = req_size
+                yield c_block
 
-                free.append( c_block )
+                # free.append( c_block )
             else:
                 # implies theres no space between blocks i and i+1
                 del c_block 
 
         # Print out free clusters in drive based on controller data
-        return free
+        # return free
 
     def resize( self, new_size:int ):
         if new_size < self.drive.size:
-
             for i in range( len(self._base) ):
-                if self[i].c_type != FILE_CONTROLLER:
-                    continue
-                if ( self[i].start < new_size and self[i].end < new_size ) or ( self[i].start > new_size ):
-                    # indicates that the block is in the way
+                if interference( self[i], new_size ):
                     self._base.pop( i )
+                # if self[i].c_type != FILE_CONTROLLER:
+                #     continue
+                # if ( self[i].start < new_size and self[i].end < new_size ) or ( self[i].start > new_size ):
+                #     # indicates that the block is in the way
+                #     self._base.pop( i )
 
         self.drive.size = new_size
         return new_size
 
     # TESTED & WORKING
+    # get control /:solidbase/:id
     def __getitem__( self, i ):
         assert abs( i ) < len( self._base ), "Index out of range"
 
@@ -238,7 +252,8 @@ class Controller:
         return
 
     @staticmethod
-    def load_file( fn ):
+    def load_file( drivename ):
+        fn = os.path.join( BASE_DIRECTORY, f"{drivename}-solidbase", ".controller.json" )
 
         with open ( fn, "r" ) as f:
             data = json.load( f )
