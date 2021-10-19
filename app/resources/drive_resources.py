@@ -4,6 +4,8 @@ from werkzeug.wrappers.response import Response
 
 from genericpath import isdir
 
+from app.structures.utils.extras import translate_capacity
+
 from ..structures.configs import BASE_DIRECTORY
 
 from ..structures.controller import Controller
@@ -15,7 +17,7 @@ import os, shutil
 class DriveResource(Resource):
     args = reqparse.RequestParser()
     args.add_argument( "name", type = str, required = True )
-    args.add_argument( "capacity", type = int, required = True )
+    args.add_argument( "capacity", type = str, required = True )
 
 
     @marshal_with( drive_fields )
@@ -37,16 +39,18 @@ class DriveResource(Resource):
             controller = Controller( **pl )
         except FileExistsError as e:
             abort( Response(str(e), 400) )
-        
+        except ValueError:
+            abort( Response( f"Incorrect value for capacity\n{translate_capacity.__doc__}\n", 400 ) )
+
         controller.dump()
-        
+
         return controller
-    
+
     @marshal_with( drive_fields )
     def delete( self, drivename:str = None ):
         if drivename is None:
             abort( Response( "Drive name is requiired" ), 400 )
-        
+
         fn = os.path.join( BASE_DIRECTORY, drivename )
 
         try:

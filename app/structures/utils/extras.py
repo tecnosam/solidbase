@@ -5,6 +5,19 @@ from ..configs import FILE_CONTROLLER
 SIZE_METRIC = [ 'BB', 'KB', 'MB', 'GB', 'TB' ]
 
 def translate_capacity(capacity:str):
+    """
+        The capacity must be a string containing an integer value
+        and a metric representing the integer value
+        the metric must be one of BB, KB, MB, GB, TB
+        use BB if its in bytes
+        use KB if its in kilobytes
+        use MB if its in megabytes
+        use GB if its in gigabytes
+        use TB if its in terabytes
+
+        e.g 50MB translates to 50 megabytes
+        140BB translates to 140 bytes
+    """
     # converts from supported storage capacity to capacity in bytes
     return int(float(capacity[:-2]) * ( 1024 ** (SIZE_METRIC.index( capacity[-2:] )) ))
 
