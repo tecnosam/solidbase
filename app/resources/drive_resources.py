@@ -25,6 +25,7 @@ class DriveResource(Resource):
         if drivename is not None:
 
             if os.path.exists( os.path.join( BASE_DIRECTORY, f"{drivename}-solidbase" ) ):
+
                 return Controller.load_file( drivename )
         
         fullpath = lambda d: os.path.join( BASE_DIRECTORY, d )
