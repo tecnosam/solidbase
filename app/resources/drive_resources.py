@@ -10,7 +10,8 @@ from ..structures.configs import BASE_DIRECTORY
 
 from ..structures.controller import Controller
 
-from .all_fields import drive_fields
+from .all_fields import controller_fields
+from .some_functions import load_controller
 
 import os, shutil
 
@@ -20,20 +21,18 @@ class DriveResource(Resource):
     args.add_argument( "capacity", type = str, required = True )
 
 
-    @marshal_with( drive_fields )
+    @marshal_with( controller_fields )
     def get( self, drivename:str = None ):
         if drivename is not None:
 
-            if os.path.exists( os.path.join( BASE_DIRECTORY, f"{drivename}-solidbase" ) ):
+            return load_controller( drivename )
 
-                return Controller.load_file( drivename )
-        
         fullpath = lambda d: os.path.join( BASE_DIRECTORY, d )
         cond = lambda d: d[-10:] == "-solidbase" and isdir( fullpath(d) )
 
         return [ Controller.load_file( d[:-10] ) for d in os.listdir( BASE_DIRECTORY ) if cond(d) ]
 
-    @marshal_with( drive_fields )
+    @marshal_with( controller_fields )
     def post( self, drivename = None ):
         pl = self.args.parse_args( strict = True )
         try:
@@ -47,7 +46,7 @@ class DriveResource(Resource):
 
         return controller
 
-    @marshal_with( drive_fields )
+    @marshal_with( controller_fields )
     def delete( self, drivename:str = None ):
         if drivename is None:
             abort( Response( "Drive name is requiired" ), 400 )
@@ -55,9 +54,16 @@ class DriveResource(Resource):
         fn = os.path.join( BASE_DIRECTORY, drivename )
 
         try:
+
             controller = Controller.load_file( fn )
+
+            if controller is None:
+                abort( Response("Drive not found", 404) )
+
             shutil.rmtree( fn )
+
         except Exception as e:
+
             abort( Response( str(e), 500 ) )
 
         return controller

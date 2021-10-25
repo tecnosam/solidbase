@@ -79,7 +79,8 @@ class Controller:
     def pop_control( self, id) -> ControllerBlock:
         i = self.find(id)
         if i == -1:
-            raise IndexError( "Cannot find ControllerBlock with id %s" % id )
+            # raise IndexError( "Cannot find ControllerBlock with id %s" % id )
+            return None
         c_block = self._base.pop( i )
 
         # delete all children recursively
@@ -254,10 +255,12 @@ class Controller:
     @staticmethod
     def load_file( drivename ):
         fn = os.path.join( BASE_DIRECTORY, f"{drivename}-solidbase", ".controller.json" )
-
-        with open ( fn, "r" ) as f:
-            data = json.load( f )
-        f.close()
+        try:
+            with open ( fn, "r" ) as f:
+                data = json.load( f )
+            f.close()
+        except FileNotFoundError:
+            return None
 
         _controller = Controller( 
             data['name'], data['capacity'], drive_dir = data['drive_dir'],
